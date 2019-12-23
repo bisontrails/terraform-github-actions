@@ -6,14 +6,15 @@ function terraformPlan {
   planOutput=$(terraform plan -detailed-exitcode -input=false ${*} 2>&1)
   planExitCode=${?}
   planHasChanges=false
-  planCommentStatus="Failed"
+  planCommentStatus="🛑 Failed ✋"
 
   # Exit code of 0 indicates success with no changes. Print the output and exit.
   if [ ${planExitCode} -eq 0 ]; then
+    planHasChanges=false
+    planCommentStatus="👍 Success :shipit:"
     echo "plan: info: successfully planned Terraform configuration in ${tfWorkingDir}"
     echo "${planOutput}"
     echo
-    exit ${planExitCode}
   fi
 
   # Exit code of 2 indicates success with changes. Print the output, change the
@@ -21,7 +22,7 @@ function terraformPlan {
   if [ ${planExitCode} -eq 2 ]; then
     planExitCode=0
     planHasChanges=true
-    planCommentStatus="Success"
+    planCommentStatus="👍 Success :shipit:"
     echo "plan: info: successfully planned Terraform configuration in ${tfWorkingDir}"
     echo "${planOutput}"
     echo
@@ -42,7 +43,7 @@ function terraformPlan {
   fi
 
   # Comment on the pull request if necessary.
-  if [ "$GITHUB_EVENT_NAME" == "pull_request" ] && [ "${tfComment}" == "1" ] && ([ "${planHasChanges}" == "true" ] || [ "${planCommentStatus}" == "Failed" ]); then
+  if [ "$GITHUB_EVENT_NAME" == "pull_request" ] && [ "${tfComment}" == "1" ]; then
     planCommentWrapper="#### \`terraform plan\` ${planCommentStatus}
 <details><summary>Show Output</summary>
 
@@ -52,7 +53,9 @@ ${planOutput}
 
 </details>
 
-*Workflow: \`${GITHUB_WORKFLOW}\`, Action: \`${GITHUB_ACTION}\`, Working Directory: \`${tfWorkingDir}\`*"
+- **Workflow**: \`${GITHUB_WORKFLOW}\`
+- **Action**: \`${GITHUB_ACTION}\`
+- **Working Directory**: \`${tfWorkingDir}\`"
 
     planCommentWrapper=$(stripColors "${planCommentWrapper}")
     echo "plan: info: creating JSON"
